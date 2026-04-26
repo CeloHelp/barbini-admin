@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Save, X } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import type { Product } from "../api/types";
 
@@ -13,6 +13,32 @@ const empty: FormData = {
   unit: "",
   status: "ativo",
 };
+
+function formatMoneyInput(value: number): string {
+  if (!value) return "";
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function parseMoneyInput(value: string): number {
+  const clean = value.replace(/[^\d,.]/g, "");
+  if (!clean) return 0;
+
+  const hasDecimalSeparator = /[,.]/.test(clean);
+  if (hasDecimalSeparator) {
+    const normalized = clean.replace(/\./g, "").replace(",", ".");
+    return Number.parseFloat(normalized) || 0;
+  }
+
+  if (clean.length <= 2) return Number(clean);
+  return Number(clean) / 100;
+}
+
+function sanitizeMoneyInput(value: string): string {
+  return value.replace(/[^\d,.]/g, "");
+}
 
 function inputStyle(focused: boolean) {
   return {
@@ -28,6 +54,7 @@ export function ProductForm({ mode }: { mode: "create" | "edit" | "view" }) {
   const navigate = useNavigate();
   const { getProduct, addProduct, updateProduct } = useApp();
   const [form, setForm] = useState<FormData>(empty);
+  const [priceInput, setPriceInput] = useState("");
   const [focused, setFocused] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [saved, setSaved] = useState(false);
@@ -43,6 +70,7 @@ export function ProductForm({ mode }: { mode: "create" | "edit" | "view" }) {
           unit: product.unit,
           status: product.status,
         });
+        setPriceInput(formatMoneyInput(product.price));
       } else {
         navigate("/produtos");
       }
@@ -52,18 +80,40 @@ export function ProductForm({ mode }: { mode: "create" | "edit" | "view" }) {
   const validate = () => {
     const e: Partial<Record<keyof FormData, string>> = {};
     if (!form.name.trim()) e.name = "Nome é obrigatório";
-    if (!form.price || form.price <= 0) e.price = "Preço deve ser maior que zero";
+    const price = parseMoneyInput(priceInput);
+    if (!price || price <= 0) e.price = "Preço deve ser maior que zero";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
+  const syncPrice = (value: string) => {
+    const price = parseMoneyInput(value);
+    setForm((current) => ({ ...current, price }));
+    setPriceInput(formatMoneyInput(price));
+    return price;
+  };
+
+  const handlePriceChange = (value: string) => {
+    const sanitized = sanitizeMoneyInput(value);
+    setPriceInput(sanitized);
+    setForm((current) => ({ ...current, price: parseMoneyInput(sanitized) }));
+  };
+
+  const stepPrice = (delta: number) => {
+    const next = Math.max(0, Number((form.price + delta).toFixed(2)));
+    setForm({ ...form, price: next });
+    setPriceInput(formatMoneyInput(next));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const price = syncPrice(priceInput);
     if (!validate()) return;
+    const payload = { ...form, price };
     if (mode === "create") {
-      await addProduct(form);
+      await addProduct(payload);
     } else if (mode === "edit" && id) {
-      await updateProduct(id, form);
+      await updateProduct(id, payload);
     }
     setSaved(true);
     setTimeout(() => navigate("/produtos"), 800);
@@ -152,23 +202,47 @@ export function ProductForm({ mode }: { mode: "create" | "edit" | "view" }) {
 
           {/* Price + Unit */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium mb-1.5" style={{ color: "#000000" }}>
                 Preço *
               </label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.price}
+                type="text"
+                inputMode="decimal"
+                value={priceInput}
                 readOnly={isView}
-                onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => handlePriceChange(e.target.value)}
                 placeholder="0,00"
-                className="w-full px-3.5 py-2.5 rounded-lg text-sm outline-none"
+                className="w-full px-3.5 py-2.5 pr-11 rounded-lg text-sm outline-none"
                 style={inputStyle(focused === "price")}
                 onFocus={() => setFocused("price")}
-                onBlur={() => setFocused(null)}
+                onBlur={() => {
+                  syncPrice(priceInput);
+                  setFocused(null);
+                }}
               />
+              {!isView && (
+                <div className="absolute right-1.5 top-[31px] flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => stepPrice(0.01)}
+                    className="h-5 w-7 flex items-center justify-center rounded-t"
+                    style={{ color: "#6B7280", background: "#6B728015" }}
+                    title="Aumentar centavos"
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => stepPrice(-0.01)}
+                    className="h-5 w-7 flex items-center justify-center rounded-b"
+                    style={{ color: "#6B7280", background: "#6B728015" }}
+                    title="Diminuir centavos"
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+              )}
               {errors.price && <p className="text-xs mt-1" style={{ color: "#F80A0A" }}>{errors.price}</p>}
             </div>
             <div>
