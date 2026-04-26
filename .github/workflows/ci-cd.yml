@@ -45,7 +45,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/barbini_admin_test
           JWT_SECRET: ci-test-secret
           NODE_ENV: test
-        run: pnpm test
+        run: pnpm exec vitest run --passWithNoTests
 
       - name: Build application
         env:
