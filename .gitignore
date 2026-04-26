@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.corepack/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
