@@ -7,6 +7,9 @@ dotenv.config();
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: Number(process.env.DB_POOL_SIZE ?? 5),
+  ssl: process.env.DB_SSL === "true"
+    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false" }
+    : undefined,
 });
 
 export async function transaction<T>(callback: (client: pg.PoolClient) => Promise<T>) {

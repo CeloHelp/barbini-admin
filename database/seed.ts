@@ -106,7 +106,7 @@ async function main() {
 }
 
 main()
-  .finally(async () => pool.end())
+  .then(async () => pool.end())
   .catch(async (error) => {
     console.error(error);
     await pool.end();
