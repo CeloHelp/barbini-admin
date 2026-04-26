@@ -35,19 +35,22 @@ Credencial seed:
 
 ## Google Cloud
 
-O deploy deve acontecer em fase separada. A configuracao esperada e:
+O deploy no Cloud Run esta documentado em `docs/deploy-cloud-run.md`.
 
 - Cloud Run para o container da aplicacao.
 - Cloud SQL PostgreSQL para o banco.
 - Secret Manager para `DATABASE_URL` e `JWT_SECRET`.
 - Conexao Cloud Run -> Cloud SQL via instancia anexada ao servico.
 
-Exemplo conceitual:
+Comando principal:
 
 ```bash
 gcloud run deploy barbini-admin \
   --source . \
   --region southamerica-east1 \
-  --add-cloudsql-instances PROJECT_ID:southamerica-east1:INSTANCE_NAME \
-  --set-secrets DATABASE_URL=barbini-database-url:latest,JWT_SECRET=barbini-jwt-secret:latest
+  --allow-unauthenticated \
+  --port 8080 \
+  --add-cloudsql-instances barbini-admin:southamerica-east1:barbini-admin-db \
+  --set-secrets DATABASE_URL=barbini-database-url:latest,JWT_SECRET=barbini-jwt-secret:latest \
+  --set-env-vars NODE_ENV=production,DB_SSL=false
 ```
