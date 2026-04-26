@@ -12,6 +12,31 @@ interface FormData {
 
 const empty: FormData = { name: "", phone: "", email: "", notes: "" };
 
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 11);
+}
+
+function formatPhone(value: string): string {
+  const digits = onlyDigits(value);
+  if (digits.length <= 2) return digits ? `(${digits}` : "";
+
+  const areaCode = digits.slice(0, 2);
+  const number = digits.slice(2);
+
+  if (number.length <= 4) return `(${areaCode}) ${number}`;
+
+  if (digits.length <= 10) {
+    return `(${areaCode}) ${number.slice(0, 4)}-${number.slice(4)}`;
+  }
+
+  return `(${areaCode}) ${number.slice(0, 5)}-${number.slice(5)}`;
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = onlyDigits(value);
+  return digits.length === 10 || digits.length === 11;
+}
+
 function inputStyle(focused: boolean) {
   return {
     background: "#FAF9F6",
@@ -45,10 +70,15 @@ export function ClientForm({ mode }: { mode: "create" | "edit" | "view" }) {
     const e: Partial<FormData> = {};
     if (!form.name.trim()) e.name = "Nome é obrigatório";
     if (!form.phone.trim()) e.phone = "Telefone é obrigatório";
+    else if (!isValidPhone(form.phone)) e.phone = "Informe DDD + telefone com 10 ou 11 dígitos";
     if (!form.email.trim()) e.email = "E-mail é obrigatório";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "E-mail inválido";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setForm({ ...form, phone: formatPhone(value) });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,8 +166,10 @@ export function ClientForm({ mode }: { mode: "create" | "edit" | "view" }) {
               type="text"
               value={form.phone}
               readOnly={isView}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              onChange={(e) => handlePhoneChange(e.target.value)}
               placeholder="(00) 00000-0000"
+              inputMode="numeric"
+              maxLength={15}
               className="w-full px-3.5 py-2.5 rounded-lg text-sm outline-none"
               style={inputStyle(focused === "phone")}
               onFocus={() => setFocused("phone")}
