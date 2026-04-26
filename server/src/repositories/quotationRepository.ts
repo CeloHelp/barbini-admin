@@ -75,6 +75,11 @@ function groupQuotations(rows: any[]) {
   return [...map.values()];
 }
 
+async function findWithExecutor(executor: Pick<PoolClient, "query">, id: string) {
+  const result = await executor.query(`${detailSelect} WHERE q.id = $1 ORDER BY qi.id ASC`, [id]);
+  return groupQuotations(result.rows)[0] ?? null;
+}
+
 export const quotationRepository = {
   async list(filters: { search?: string; date?: string; status?: QuotationStatus }) {
     const values: unknown[] = [];
@@ -96,8 +101,7 @@ export const quotationRepository = {
     return groupQuotations(result.rows);
   },
   async find(id: string) {
-    const result = await pool.query(`${detailSelect} WHERE q.id = $1 ORDER BY qi.id ASC`, [id]);
-    return groupQuotations(result.rows)[0] ?? null;
+    return findWithExecutor(pool, id);
   },
   async nextNumber(client: PoolClient) {
     const result = await client.query("SELECT COUNT(*)::int AS count FROM quotations");
@@ -128,7 +132,7 @@ export const quotationRepository = {
         [randomUUID(), id, item.productId, item.productName, item.quantity, item.unitPrice],
       );
     }
-    return this.find(id);
+    return findWithExecutor(client, id);
   },
   async update(
     client: PoolClient,
@@ -156,6 +160,6 @@ export const quotationRepository = {
         [randomUUID(), id, item.productId, item.productName, item.quantity, item.unitPrice],
       );
     }
-    return this.find(id);
+    return findWithExecutor(client, id);
   },
 };
